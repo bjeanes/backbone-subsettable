@@ -2,26 +2,40 @@ extend('Backbone.SubsettableCollection', {
   subset: function(filter) {
     filter || (filter = function() { return true; });
 
-    var superset    = this;
-    var SubsetClass = Backbone.Collection.extend(superset);
-    var subset      = new SubsetClass(superset.filter(filter));
+    var B = window.Backbone || window.vendor.Backbone;
+    var _ = window._        || B._;
+
+    var superset = this;
+    var subset   = new superset.__proto__.constructor(superset.filter(filter)); // nicer way?
+
+    _.bindAll(subset, 'add', 'remove', 'reset');
+    var add    = subset.add;
+    var remove = subset.remove;
+    var reset  = subset.reset;
+
+    var flattenedEach = function(items, fn) {
+      items = _.isArray(items) ? items : [items];
+      _.each(items, fn);
+    };
 
     subset.add = function(models, options) {
-      models = _.isArray(models) ? models : [models];
-
-      _.each(models, function(model) {
+      flattenedEach(models, function(model) {
         if(superset.contains(model) && filter(model)) {
-          subset._add(model, options);
+          add(model, options);
         }
       });
     };
 
     subset.remove = function(models, options) {
-      models = _.isArray(models) ? models : [models];
-
-      _.each(models, function(model) {
-        subset._remove(model, options);
+      flattenedEach(models, function(model) {
+        if(!(superset.contains(model) && filter(model))) {
+          remove(model, options);
+        }
       });
+    };
+
+    subset.reset = function(collection) {
+      reset(collection.models);
     };
 
     var change = function(model) {
@@ -37,6 +51,10 @@ extend('Backbone.SubsettableCollection', {
     superset.bind('change', change,        subset);
     superset.bind('add',    subset.add,    subset);
     superset.bind('remove', subset.remove, subset);
+    superset.bind('reset',  subset.reset,  subset);
+    superset.bind('all', function(event) {
+      console.log("DEBUG superset event", event, arguments);
+    });
 
     return subset;
   }
