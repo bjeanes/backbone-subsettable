@@ -21,57 +21,50 @@ extend('Backbone.SubsettableCollection', {
     var B = window.Backbone || window.vendor.Backbone;
     var _ = window._        || B._;
 
-
-    Object.getPrototypeOf || (Object.getPrototypeOf = function(obj) {
-      return obj.__proto__ || obj.constructor.prototype;
-    });
-
-    var constructor = function(obj) {
-      return obj.constructor || Object.getPrototypeOf(obj).constructor;
-    }
+    var toArray = function(items) {
+      items = _.isArray(items) ? items : [items];
+      return _(items);
+    };
 
     var superset = this;
-    var Subset   = constructor(superset);
-    var subset   = new Subset(superset.filter(filter));
 
-    _.bindAll(subset, 'add', 'remove');
-    var add    = subset.add;
-    var remove = subset.remove;
-
-    var flattenedEach = function(items, fn) {
-      items = _.isArray(items) ? items : [items];
-      _.each(items, fn);
-    };
-
-    subset.add = function(models, options) {
-      flattenedEach(models, function(model) {
-        if(superset.contains(model) && filter(model)) {
-          add(model, options);
-        }
-      });
-    };
-
-    subset.remove = function(models, options) {
-      flattenedEach(models, function(model) {
-        var matches    = filter(model),
-            inSuperset = superset.contains(model),
-            inSubset   = subset.contains(model);
-
-        if(inSuperset) {
-          if(!matches && inSubset) {
-            remove(model, options);
+    var Subset = superset.constructor.extend({
+      add: function(models, options) {
+        var self = this;
+        toArray(models).each(function(model) {
+          if(superset.contains(model) && filter(model)) {
+            superset.add.call(self, model, options);
           }
-        } else {
-          remove(model, options);
-        }
-      });
-    };
+        });
+      },
 
-    var reset = function(collection) {
-      subset.reset(collection.models);
-    };
+      remove: function(models, options) {
+        var self = this;
+        toArray(models).each(function(model) {
+          var matches    = filter(model),
+              inSuperset = superset.contains(model),
+              inSubset   = subset.contains(model);
 
-    var change = function(model) {
+          if(inSuperset) {
+            if(!matches && inSubset) {
+              superset.remove.call(self, model, options);
+            }
+          } else {
+            superset.remove.call(self, model, options);
+          }
+        });
+      }
+    });
+
+    var subset = new Subset(superset.filter(filter));
+
+    // TODO: Optimization:
+    //   - Add second parameter to the @subset@
+    //     method that is an array of attributes
+    //     to listen to. If present, we only bind
+    //     to the @change:<attribute>@ events for
+    //     each attribute, instead of any change.
+    superset.bind('change', function(model) {
       var matches = filter(model);
 
       if(matches && !subset.contains(model)) {
@@ -83,12 +76,13 @@ extend('Backbone.SubsettableCollection', {
         subset.remove(model);
         return;
       }
-    };
+    }, subset);
 
-    superset.bind('change', change,        subset);
     superset.bind('add',    subset.add,    subset);
     superset.bind('remove', subset.remove, subset);
-    superset.bind('reset',  reset,         subset);
+    superset.bind('reset', function(collection) {
+      subset.reset(collection.models);
+    }, subset);
 
     return subset;
   }
