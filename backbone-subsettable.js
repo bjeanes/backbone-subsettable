@@ -14,12 +14,9 @@
 //
 // To avoid this, make sure your view's event listeners check the collection
 // from which the event originated before actually removing the view.
-extend('Backbone.SubsettableCollection', {
-  subset: function(filter) {
+(function(root, Backbone, _) {
+  Backbone.Collection.prototype.subset = function(filter) {
     filter || (filter = function() { return true; });
-
-    var B = window.Backbone || window.vendor.Backbone;
-    var _ = window._        || B._;
 
     var toArray = function(items) {
       items = _.isArray(items) ? items : [items];
@@ -86,4 +83,4 @@ extend('Backbone.SubsettableCollection', {
 
     return subset;
   }
-});
+}).call(this, Backbone, _);
