@@ -15,13 +15,13 @@
 // To avoid this, make sure your view's event listeners check the collection
 // from which the event originated before actually removing the view.
 (function(root, Backbone, _) {
+  var toArray = function(items) {
+    items = _.isArray(items) ? items : [items];
+    return _(items);
+  };
+
   Backbone.Collection.prototype.subset = function(filter) {
     filter || (filter = function() { return true; });
-
-    var toArray = function(items) {
-      items = _.isArray(items) ? items : [items];
-      return _(items);
-    };
 
     var superset = this;
 
